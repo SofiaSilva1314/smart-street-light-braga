@@ -2,9 +2,6 @@
 
 Sistema de **iluminação pública inteligente** para a cidade de **Braga**. Os postes regulam automaticamente o brilho conforme a luz ambiente, o consumo de energia é monitorizado, as avarias são detetadas e tudo é apresentado num painel com mapa, gráficos, relatórios e alertas.
 
-> Projeto académico — ioAcademy Challenge, Desafio 1 (IoT). Desenvolvido segundo o método **4SRS** (dos casos de uso à arquitetura lógica e ao código).
-
----
 
 ## Objetivo do projeto
 
