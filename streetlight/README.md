@@ -180,26 +180,15 @@ streetlight/
 
 ---
 
-## Prints da aplicação
-
-| Login | Mapa |
-|-------|------|
-| ![Login](docs/images/login.png) | ![Mapa](docs/images/mapa-braga.png) |
-
-Documentação completa: [Manual da aplicação (Word)](docs/manual-aplicacao.docx)
-
----
-
 ## Autores
 
-- _[O teu nome aqui]_ — ioAcademy Challenge
+- Sofia Silva —
 
 ---
 
 ## Limitações e melhorias futuras
 
 - Base de dados em memória (perde dados ao desligar) → usar PostgreSQL/MySQL
-- Passwords em texto simples → encriptar (BCrypt) e usar Spring Security
 - Comunicação HTTP → evoluir para MQTT (protocolo IoT típico)
 - Consumo simplificado (80W por leitura) → medição contínua de energia
 - Sem filtros no CSV → adicionar filtros por data/zona
