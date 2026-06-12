@@ -1,0 +1,30 @@
+# ===== Java / Spring Boot / Maven =====
+target/
+*.class
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+*.log
+
+# ===== IDEs =====
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# ===== Python (simulador) =====
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# ===== Sistema operativo =====
+.DS_Store
+Thumbs.db
+
+# ===== Outros temporarios =====
+*.tmp
+*.bak

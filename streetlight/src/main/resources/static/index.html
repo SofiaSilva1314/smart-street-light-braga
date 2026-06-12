@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Street Light - Braga</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{ --tinta:#1a2238; --azul:#2d4a8a; --verde:#0f6e56; --amarelo:#b8860b; --vermelho:#a4243b; --fundo:#eef1f6; --borda:#d4dae6; }
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;background:var(--fundo);color:var(--tinta)}
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a2238,#2d4a8a)}
+  .login-box{background:#fff;padding:40px;border-radius:14px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .login-box h1{font-size:20px;margin:0 0 4px}.login-box p{color:#777;font-size:13px;margin:0 0 24px}
+  .login-box input{width:100%;padding:11px;margin:6px 0;border:1px solid var(--borda);border-radius:8px;font-size:14px}
+  .login-box button{width:100%;padding:12px;margin-top:12px;border:none;border-radius:8px;background:var(--azul);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+  .hint{margin-top:16px;font-size:11px;color:#999;line-height:1.6}.erro{color:var(--vermelho);font-size:13px;margin-top:8px;min-height:18px}
+  #app{display:none}
+  header{background:var(--tinta);color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+  header h1{font-size:17px;margin:0}.perfil{font-size:13px;opacity:.85}
+  header button{background:var(--azul);border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer}
+  .layout{display:flex;min-height:calc(100vh - 50px)}
+  nav{width:250px;background:#fff;border-right:1px solid var(--borda);padding:16px 0}
+  nav .grupo{font-size:11px;text-transform:uppercase;color:#999;padding:10px 20px 4px;letter-spacing:.5px}
+  nav a{display:block;padding:10px 20px;color:var(--tinta);text-decoration:none;font-size:14px;cursor:pointer;border-left:3px solid transparent}
+  nav a:hover{background:var(--fundo)}nav a.ativo{background:#eef2fb;border-left-color:var(--azul);font-weight:600;color:var(--azul)}
+  main{flex:1;padding:24px;overflow:auto}
+  h2{font-size:18px;margin:0 0 16px}
+  .cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+  .card{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:16px;min-width:150px}
+  .card b{font-size:22px;display:block;color:var(--azul)}.card span{font-size:12px;color:#777}
+  table{border-collapse:collapse;width:100%;background:#fff;border-radius:8px;overflow:hidden}
+  th,td{border-bottom:1px solid var(--borda);padding:9px 12px;font-size:13px;text-align:left}
+  th{background:#f4f6fb;font-weight:600}
+  .verde{color:var(--verde);font-weight:600}.vermelho{color:var(--vermelho);font-weight:600}.amarelo{color:var(--amarelo);font-weight:600}
+  .barra{background:#eef;border-radius:4px;height:13px;width:70px;display:inline-block;vertical-align:middle}.barra>div{background:var(--azul);height:100%;border-radius:4px}
+  button.acao{padding:6px 12px;border:none;background:var(--azul);color:#fff;border-radius:6px;cursor:pointer;font-size:13px}
+  input.campo,select.campo{padding:8px;border:1px solid var(--borda);border-radius:6px;font-size:13px;margin:3px}
+  label.auto{font-size:13px;margin-left:10px}
+  #mapa{height:520px;border-radius:10px;border:1px solid var(--borda)}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-box">
+    <h1>Smart Street Light</h1>
+    <p>Iluminação Pública Inteligente — Braga</p>
+    <input id="u" placeholder="Utilizador" autocomplete="off">
+    <input id="p" type="password" placeholder="Password">
+    <button onclick="entrar()">Entrar</button>
+    <div class="erro" id="erroLogin"></div>
+    <div class="hint">Contas de demonstração:<br>Admin → <b>admin</b> / admin123<br>Operador → <b>operador</b> / op123</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>Smart Street Light — Braga</h1>
+    <div><span class="perfil" id="perfilLabel"></span> <button onclick="sair()">Sair</button></div>
+  </header>
+  <div class="layout">
+    <nav id="menu"></nav>
+    <main id="conteudo"></main>
+  </div>
+</div>
+
+<script>
+let PERFIL=null, mapa=null, marcadores={};
+
+async function entrar(){
+  const username=document.getElementById('u').value, password=document.getElementById('p').value;
+  const erro=document.getElementById('erroLogin'); erro.textContent='';
+  try{
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+    const d=await r.json();
+    if(d.sucesso){ PERFIL=d.perfil; document.getElementById('login').style.display='none';
+      document.getElementById('app').style.display='block';
+      document.getElementById('perfilLabel').textContent=d.mensagem+' ('+PERFIL+')'; construirMenu();
+    } else erro.textContent=d.mensagem;
+  }catch(e){ erro.textContent='Erro de ligação ao servidor.'; }
+}
+function sair(){ PERFIL=null; location.reload(); }
+
+const ITENS=[
+  {id:'mapa',     label:'Mapa de Braga (UC4.1)',          grupo:'Operação',     perfis:['OPERADOR','ADMINISTRADOR']},
+  {id:'estado',   label:'Estado dos postes (UC1.2)',      grupo:'Operação',     perfis:['OPERADOR','ADMINISTRADOR']},
+  {id:'alertas',  label:'Alertas (UC3.1)',                grupo:'Operação',     perfis:['OPERADOR','ADMINISTRADOR']},
+  {id:'controlo', label:'Controlo manual (UC3.3)',        grupo:'Operação',     perfis:['OPERADOR','ADMINISTRADOR']},
+  {id:'historico',label:'Histórico de leituras (UC2.2)',  grupo:'Consulta',     perfis:['OPERADOR','ADMINISTRADOR']},
+  {id:'graficos', label:'Gráficos de consumo (UC4.2)',grupo:'Consulta',     perfis:['OPERADOR','ADMINISTRADOR']},
+  {id:'relatorio',label:'Custo e poupança (UC4.3)',grupo:'Consulta',     perfis:['OPERADOR','ADMINISTRADOR']},
+  {id:'exportar', label:'Exportar CSV (UC5.3)',           grupo:'Consulta',     perfis:['OPERADOR','ADMINISTRADOR']},
+  {id:'postes',   label:'Gerir postes (UC2.3)',           grupo:'Administração',perfis:['ADMINISTRADOR']},
+  {id:'regras',   label:'Regras e thresholds (UC5.1)',    grupo:'Administração',perfis:['ADMINISTRADOR']},
+  {id:'utils',    label:'Gerir utilizadores (UC5.2)',     grupo:'Administração',perfis:['ADMINISTRADOR']},
+];
+function construirMenu(){
+  const itens=ITENS.filter(i=>i.perfis.includes(PERFIL));
+  const grupos=[...new Set(itens.map(i=>i.grupo))]; let html='';
+  for(const g of grupos){ html+=`<div class="grupo">${g}</div>`;
+    for(const i of itens.filter(x=>x.grupo===g)) html+=`<a onclick="abrir('${i.id}',this)">${i.label}</a>`; }
+  document.getElementById('menu').innerHTML=html;
+  abrir(itens[0].id, document.querySelector('nav a'));
+}
+function abrir(id,el){
+  clearInterval(timerAuto); mapa=null;
+  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('ativo')); if(el)el.classList.add('ativo');
+  const c=document.getElementById('conteudo');
+  ({mapa:verMapa,estado:verEstado,alertas:verAlertas,controlo:verControlo,historico:verHistorico,
+    graficos:verGraficos,relatorio:verRelatorio,exportar:verExportar,postes:verGerirPostes,regras:verRegras,utils:verUtilizadores}[id])(c);
+}
+function cor(e){ return e==='FALHA'?'vermelho':(e==='LIGADO'?'verde':'amarelo'); }
+function corHex(e){ return e==='FALHA'?'#a4243b':(e==='LIGADO'?'#0f6e56':'#b8860b'); }
+
+// ---- MAPA LEAFLET (Braga) ----
+async function verMapa(c){
+  c.innerHTML=`<h2>Mapa de Braga — postes de iluminação</h2>
+    <label class="auto"><input type="checkbox" onchange="auto(this,atualizarMapa)"> Atualização automática (5s)</label>
+    <p style="font-size:12px;color:#777;margin:6px 0">Clica num poste para ver o estado. Verde=ligado, Amarelo=desligado, Vermelho=falha.</p>
+    <div id="mapa"></div>`;
+  mapa=L.map('mapa').setView([41.5503,-8.4200],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap', maxZoom:19}).addTo(mapa);
+  marcadores={};
+  await atualizarMapa();
+}
+async function atualizarMapa(){
+  if(!mapa) return;
+  const postes=await (await fetch('/api/dashboard/mapa')).json();
+  for(const p of postes){
+    const popup=`<b>${p.nome}</b> (poste ${p.posteId})<br>Zona: ${p.zona}<br>
+      Estado: <b style="color:${corHex(p.estado)}">${p.estado}</b><br>
+      Brilho: ${p.brilho}%<br>Luz ambiente: ${p.luminosidade}<br>
+      Última atualização: ${p.ultimaAtualizacao}`;
+    if(marcadores[p.posteId]){
+      marcadores[p.posteId].setStyle({fillColor:corHex(p.estado),color:corHex(p.estado)});
+      marcadores[p.posteId].getPopup().setContent(popup);
+    } else {
+      const m=L.circleMarker([p.latitude,p.longitude],{radius:9,fillColor:corHex(p.estado),
+        color:corHex(p.estado),weight:2,fillOpacity:.8}).addTo(mapa).bindPopup(popup);
+      marcadores[p.posteId]=m;
+    }
+  }
+}
+async function verEstado(c){
+  const postes=await (await fetch('/api/postes')).json();
+  let l=postes.map(p=>`<tr><td>${p.id}</td><td>${p.nome}</td><td>${p.zona}</td><td>${p.estado}</td>
+    <td><span class="barra"><div style="width:${p.brilho}%"></div></span> ${p.brilho}%</td></tr>`).join('');
+  c.innerHTML=`<h2>Estado dos postes</h2>
+    <label class="auto"><input type="checkbox" onchange="auto(this,()=>verEstado(document.getElementById('conteudo')))"> Atualização automática</label>
+    <table style="margin-top:12px"><tr><th>ID</th><th>Nome</th><th>Zona</th><th>Estado</th><th>Brilho</th></tr>${l}</table>`;
+}
+async function verAlertas(c){
+  const a=await (await fetch('/api/alertas')).json();
+  let l=a.length?a.map(x=>`<tr><td>${x.id}</td><td>${x.posteId}</td><td class="vermelho">${x.tipo}</td>
+    <td>${x.severidade}</td><td>${x.mensagem}</td><td>${x.estado}</td>
+    <td>${x.estado==='ABERTO'?`<button class="acao" onclick="resolverAlerta(${x.id})">Resolver</button>`:'✓'}</td></tr>`).join('')
+    :'<tr><td colspan=7>Sem alertas de momento.</td></tr>';
+  c.innerHTML=`<h2>Alertas</h2>
+    <label class="auto"><input type="checkbox" onchange="auto(this,()=>verAlertas(document.getElementById('conteudo')))"> Atualização automática</label>
+    <table style="margin-top:12px"><tr><th>ID</th><th>Poste</th><th>Tipo</th><th>Sev.</th><th>Mensagem</th><th>Estado</th><th></th></tr>${l}</table>`;
+}
+async function resolverAlerta(id){ await fetch('/api/alertas/'+id+'/resolver',{method:'POST'}); verAlertas(document.getElementById('conteudo')); }
+function verControlo(c){
+  c.innerHTML=`<h2>Controlo manual de um poste (UC3.3)</h2>
+    <input class="campo" id="cPoste" type="number" placeholder="ID poste" value="1">
+    <input class="campo" id="cBrilho" type="number" placeholder="Brilho 0-100" value="100">
+    <button class="acao" onclick="enviarComando()">Aplicar</button>
+    <div id="resCmd" style="margin-top:12px;font-size:14px"></div>`;
+}
+async function enviarComando(){
+  const cmd={posteId:+document.getElementById('cPoste').value,brilhoPretendido:+document.getElementById('cBrilho').value,operador:PERFIL};
+  const p=await (await fetch('/api/controlo/comando',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cmd)})).json();
+  document.getElementById('resCmd').innerHTML=`Poste ${p.id} agora: <b>${p.estado}</b>, brilho <b>${p.brilho}%</b>`;
+}
+async function verHistorico(c){
+  const h=await (await fetch('/api/historico')).json();
+  let l=h.slice(-60).reverse().map(x=>`<tr><td>${x.id}</td><td>${x.posteId}</td><td>${x.luminosidade}</td>
+    <td>${x.potencia}W</td><td>${x.brilho}%</td><td>${(x.instante||'').replace('T',' ').substring(0,19)}</td></tr>`).join('');
+  c.innerHTML=`<h2>Histórico de leituras</h2><p style="color:#777;font-size:13px">60 mais recentes (${h.length} no total).</p>
+    <table><tr><th>ID</th><th>Poste</th><th>Luz</th><th>Potência</th><th>Brilho</th><th>Instante</th></tr>${l||'<tr><td colspan=6>Sem leituras. Corre o simulador.</td></tr>'}</table>`;
+}
+async function verGraficos(c){
+  c.innerHTML=`<h2>Gráficos de consumo (UC4.2)</h2>
+    <p style="color:#777;font-size:13px">Visualização dos dados de consumo. Atualiza com as leituras recebidas do simulador.</p>
+    <label class="auto"><input type="checkbox" onchange="auto(this,carregarGraficos)"> Atualização automática</label>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:12px">
+      <div style="flex:1;min-width:340px;background:#fff;border:1px solid var(--borda);border-radius:10px;padding:16px">
+        <h3 style="font-size:14px;margin:0 0 10px">Potência total ao longo do tempo</h3>
+        <canvas id="gTempo" height="160"></canvas>
+      </div>
+      <div style="flex:1;min-width:340px;background:#fff;border:1px solid var(--borda);border-radius:10px;padding:16px">
+        <h3 style="font-size:14px;margin:0 0 10px">Consumo acumulado por zona</h3>
+        <canvas id="gZona" height="160"></canvas>
+      </div>
+    </div>`;
+  await carregarGraficos();
+}
+let chartTempo=null, chartZona=null;
+async function carregarGraficos(){
+  const tempo=await (await fetch('/api/dashboard/grafico/tempo')).json();
+  const zona =await (await fetch('/api/dashboard/grafico/zona')).json();
+  const ctxT=document.getElementById('gTempo'); const ctxZ=document.getElementById('gZona');
+  if(!ctxT||!ctxZ) return;
+  if(chartTempo) chartTempo.destroy();
+  if(chartZona) chartZona.destroy();
+  chartTempo=new Chart(ctxT,{type:'line',data:{labels:tempo.map(p=>p.etiqueta),
+    datasets:[{label:'Potência (W)',data:tempo.map(p=>p.valor),borderColor:'#2d4a8a',backgroundColor:'rgba(45,74,138,.1)',fill:true,tension:.3}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+  chartZona=new Chart(ctxZ,{type:'bar',data:{labels:zona.map(z=>z.zona),
+    datasets:[{label:'Consumo (kWh)',data:zona.map(z=>z.consumo),backgroundColor:'#0f6e56'}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+}
+async function verRelatorio(c){
+  const r=await (await fetch('/api/dashboard/relatorio')).json();
+  const postes=await (await fetch('/api/dashboard/relatorio/postes')).json();
+  let linhas=postes.map(p=>`<tr>
+    <td>${p.posteId}</td><td>${p.zona}</td>
+    <td>${p.consumoRealKwh.toFixed(3)}</td>
+    <td>€${p.custoEuros.toFixed(2)}</td>
+    <td class="verde">${p.poupancaKwh.toFixed(3)} kWh</td>
+    <td class="verde">€${p.poupancaEuros.toFixed(2)}</td>
+    <td>${p.percentagemPoupanca.toFixed(1)}%</td></tr>`).join('');
+  c.innerHTML=`<h2>Relatório de custo e poupança (UC4.3)</h2>
+    <p style="color:#777;font-size:13px">Análise por poste. Poupança = consumo real vs cenário "sempre a 100%".</p>
+    <div class="cards">
+      <div class="card"><b>${r.consumoRealKwh.toFixed(2)} kWh</b><span>Consumo real total</span></div>
+      <div class="card" style="border-color:var(--verde)"><b style="color:var(--verde)">€${r.poupancaEuros.toFixed(2)}</b><span>Poupança total</span></div>
+      <div class="card"><b>${r.percentagemPoupanca.toFixed(1)}%</b><span>Percentagem poupada</span></div>
+      <div class="card"><b>${r.co2EvitadoKg.toFixed(2)} kg</b><span>CO₂ evitado</span></div>
+    </div>
+    <table style="margin-top:8px">
+      <tr><th>Poste</th><th>Zona</th><th>Consumo (kWh)</th><th>Custo</th><th>Poupança (kWh)</th><th>Poupança (€)</th><th>%</th></tr>
+      ${linhas||'<tr><td colspan=7>Sem dados ainda. Corre o simulador.</td></tr>'}
+      <tr style="font-weight:bold;background:#f4f6fb">
+        <td colspan=2>TOTAL</td>
+        <td>${r.consumoRealKwh.toFixed(3)}</td>
+        <td>€${r.custoEuros.toFixed(2)}</td>
+        <td class="verde">${r.poupancaKwh.toFixed(3)} kWh</td>
+        <td class="verde">€${r.poupancaEuros.toFixed(2)}</td>
+        <td>${r.percentagemPoupanca.toFixed(1)}%</td></tr>
+    </table>
+    <p style="color:#777;font-size:12px;margin-top:8px">Os parâmetros de preço e CO₂ definem-se no menu Regras.</p>`;
+}
+function verExportar(c){
+  c.innerHTML=`<h2>Exportar dados em CSV (UC5.3)</h2>
+    <p style="color:#777;font-size:13px">Os ficheiros são gerados a partir da base de dados e descarregados para o teu computador.</p>
+    <p>Escolhe o que exportar:</p>
+    <a href="/api/exportar/leituras" download><button class="acao">Exportar histórico de leituras</button></a>
+    <a href="/api/exportar/postes" download><button class="acao" style="margin-left:8px">Exportar estado dos postes</button></a>`;
+}
+async function verGerirPostes(c){
+  const postes=await (await fetch('/api/postes')).json();
+  let l=postes.map(p=>`<tr><td>${p.id}</td><td>${p.nome}</td><td>${p.zona}</td><td>${p.estado}</td>
+    <td><button class="acao" onclick="removerPoste(${p.id})">Remover</button></td></tr>`).join('');
+  c.innerHTML=`<h2>Gerir postes (UC2.3)</h2>
+    <div style="margin-bottom:12px"><input class="campo" id="nNome" placeholder="Nome/morada">
+    <input class="campo" id="nZona" placeholder="Zona (Centro/Norte/Sul/Universidade)">
+    <input class="campo" id="nLat" placeholder="Latitude" value="41.55">
+    <input class="campo" id="nLng" placeholder="Longitude" value="-8.42">
+    <button class="acao" onclick="criarPoste()">Registar</button></div>
+    <table><tr><th>ID</th><th>Nome</th><th>Zona</th><th>Estado</th><th></th></tr>${l}</table>`;
+}
+async function criarPoste(){
+  const p={nome:document.getElementById('nNome').value,zona:document.getElementById('nZona').value,latitude:+document.getElementById('nLat').value,longitude:+document.getElementById('nLng').value};
+  await fetch('/api/postes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  verGerirPostes(document.getElementById('conteudo'));
+}
+async function removerPoste(id){ await fetch('/api/postes/'+id,{method:'DELETE'}); verGerirPostes(document.getElementById('conteudo')); }
+async function verRegras(c){
+  const cfg=await (await fetch('/api/admin/config')).json();
+  c.innerHTML=`<h2>Regras e configuração (UC5.1)</h2>
+    <label>Preço kWh (€): <input class="campo" id="preco" value="${cfg.precoKwh}"></label><br>
+    <label>CO₂ por kWh (kg): <input class="campo" id="co2" value="${cfg.co2PorKwh}"></label><br>
+    <button class="acao" onclick="guardarConfig()" style="margin-top:8px">Guardar</button>
+    <hr style="margin:18px 0"><h3 style="font-size:15px">Thresholds do motor de decisão</h3>
+    <label>Limite dia (luz acima → apaga): <input class="campo" id="lDia" value="70"></label><br>
+    <label>Limite noite (luz abaixo → 100%): <input class="campo" id="lNoite" value="20"></label><br>
+    <button class="acao" onclick="guardarRegra()" style="margin-top:8px">Guardar regra</button>
+    <div id="resCfg" style="margin-top:12px;color:var(--verde)"></div>`;
+}
+async function guardarConfig(){
+  const c={precoKwh:+document.getElementById('preco').value,co2PorKwh:+document.getElementById('co2').value,modoAutomatico:true};
+  await fetch('/api/admin/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});
+  document.getElementById('resCfg').textContent='Configuração guardada.';
+}
+async function guardarRegra(){
+  const r={nome:'Regra editada',limiteDia:+document.getElementById('lDia').value,limiteNoite:+document.getElementById('lNoite').value,ativa:true};
+  await fetch('/api/admin/regras',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(r)});
+  document.getElementById('resCfg').textContent='Regra guardada.';
+}
+async function verUtilizadores(c){
+  const us=await (await fetch('/api/auth/utilizadores')).json();
+  let l=us.map(u=>`<tr><td>${u.id}</td><td>${u.username}</td><td>${u.perfil}</td>
+    <td><button class="acao" onclick="removerUtil(${u.id})">Remover</button></td></tr>`).join('');
+  c.innerHTML=`<h2>Gerir utilizadores (UC5.2)</h2>
+    <div style="margin-bottom:12px"><input class="campo" id="uUser" placeholder="Username">
+    <input class="campo" id="uPass" placeholder="Password">
+    <select class="campo" id="uPerfil"><option>OPERADOR</option><option>ADMINISTRADOR</option></select>
+    <button class="acao" onclick="criarUtil()">Criar</button></div>
+    <table><tr><th>ID</th><th>Username</th><th>Perfil</th><th></th></tr>${l}</table>`;
+}
+async function criarUtil(){
+  const u={username:document.getElementById('uUser').value,password:document.getElementById('uPass').value,perfil:document.getElementById('uPerfil').value};
+  await fetch('/api/auth/utilizadores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(u)});
+  verUtilizadores(document.getElementById('conteudo'));
+}
+async function removerUtil(id){ await fetch('/api/auth/utilizadores/'+id,{method:'DELETE'}); verUtilizadores(document.getElementById('conteudo')); }
+
+let timerAuto=null;
+function auto(el,fn){ clearInterval(timerAuto); if(el.checked) timerAuto=setInterval(fn,5000); }
+document.getElementById('p').addEventListener('keydown',e=>{ if(e.key==='Enter') entrar(); });
+</script>
+</body>
+</html>
