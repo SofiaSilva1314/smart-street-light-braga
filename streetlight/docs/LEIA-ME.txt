@@ -1,1 +1,0 @@
-Coloca aqui a imagem da arquitetura logica (exporta o SVG para PNG).
