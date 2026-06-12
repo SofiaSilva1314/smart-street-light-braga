@@ -1,1 +1,0 @@
-Coloca aqui os prints da app: login.png, mapa-braga.png, graficos-consumo.png, relatorio-custo-poupanca.png

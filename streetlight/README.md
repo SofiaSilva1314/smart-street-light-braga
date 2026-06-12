@@ -83,7 +83,6 @@ Ver [simulador/README.md](simulador/README.md) para detalhes.
 
 Mapa Leaflet/OpenStreetMap com os 12 postes em locais reais (Avenida Central, Sé, Bom Jesus, Universidade do Minho, etc.). Cada poste é um círculo: verde (ligado), amarelo (desligado), vermelho (falha). Ao clicar, mostra estado, brilho, luz e última atualização.
 
-![Mapa de Braga](docs/images/mapa-braga.png)
 
 ---
 
@@ -92,20 +91,6 @@ Mapa Leaflet/OpenStreetMap com os 12 postes em locais reais (Avenida Central, S�
 Um alerta de FALHA é criado quando um poste reporta 0W de potência estando de noite (devia estar aceso). O poste fica em falha (vermelho) até o operador carregar em **Resolver**, que repõe o poste a funcionar (simula a equipa de manutenção).
 
 ---
-
-## Gráficos de consumo
-
-Dois gráficos (Chart.js): potência total ao longo do tempo (linha) e consumo acumulado por zona (barras). Servem para **visualizar** a evolução do consumo.
-
-![Gráficos de consumo](docs/images/graficos-consumo.png)
-
----
-
-## Relatórios de custo e poupança
-
-Tabela por poste com consumo, custo, poupança (kWh e €) e percentagem. A poupança compara o consumo real com o cenário em que os postes estariam **sempre a 100%** — mostrando quanto se ganha por regular o brilho.
-
-![Relatório de custo e poupança](docs/images/relatorio-custo-poupanca.png)
 
 ---
 
@@ -180,26 +165,15 @@ streetlight/
 
 ---
 
-## Prints da aplicação
-
-| Login | Mapa |
-|-------|------|
-| ![Login](docs/images/login.png) | ![Mapa](docs/images/mapa-braga.png) |
-
-Documentação completa: [Manual da aplicação (Word)](docs/manual-aplicacao.docx)
-
----
-
 ## Autores
 
-- _[O teu nome aqui]_ — ioAcademy Challenge
+- Sofia Silva 
 
 ---
 
 ## Limitações e melhorias futuras
 
 - Base de dados em memória (perde dados ao desligar) → usar PostgreSQL/MySQL
-- Passwords em texto simples → encriptar (BCrypt) e usar Spring Security
 - Comunicação HTTP → evoluir para MQTT (protocolo IoT típico)
 - Consumo simplificado (80W por leitura) → medição contínua de energia
 - Sem filtros no CSV → adicionar filtros por data/zona
